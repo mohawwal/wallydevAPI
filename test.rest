@@ -1,0 +1,288 @@
+### Get: HOME
+
+GET http://localhost:4000/
+
+
+### POST: SIGN UP
+
+POST http://localhost:4000/api/v1/auth/signup
+Content-Type: application/json
+
+{
+    "email": "pass@example.com",
+    "password": "textword123",
+    "confirmPassword": "textword123"
+}
+
+### POST: LOGIN
+
+POST http://localhost:4000/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "password123"
+}
+
+### GET: GET USER DATA
+
+GET http://localhost:4000/api/v1/get-all-users
+
+
+### POST: LOGOUT
+
+POST http://localhost:4000/api/v1/auth/logout
+Content-Type: application/json
+
+
+
+### POST: ADD FRONTEND PROJECTS - MULTIPLE PROJECTS
+POST http://localhost:4000/api/v1/frontend/add-data
+Content-Type: application/json
+
+{
+    "projects": [
+        {
+            "project_name": "LONDON TAKE A BREAK",
+            "role": "Backend developer",
+            "stacks": [
+                "Python", "Tailwind"
+            ],
+            "category": "FinTech",
+            "project_link": "in my github",
+            "github_link": "github"
+        },
+        {
+            "project_name": "E-Commerce Platform",
+            "role": "Full Stack Developer",
+            "stacks": [
+                "React", "Node.js", "MongoDB"
+            ],
+            "category": "E-Commerce",
+            "project_link": "https://example.com",
+            "github_link": "https://github.com/user/ecommerce"
+        },
+        {
+            "project_name": "Task Manager App",
+            "role": "Frontend Developer",
+            "stacks": [
+                "Vue.js", "TypeScript", "Pinia"
+            ],
+            "category": "Productivity"
+        }
+    ]
+}
+
+
+### POST: ADD SINGLE FRONTEND PROJECT
+
+POST http://localhost:4000/api/v1/frontend/add-single
+Content-Type: application/json
+
+{
+    "project_name": "LONDON TAKE A BREAK",
+    "role": "Backend developer",
+    "stacks": [
+        "Python", "Tailwind"
+    ],
+    "category": "FinTech",
+    "project_link": "in my github",
+    "github_link": "github"
+}
+
+
+
+### GET: FETCH ALL FRONTEND PROJECTS
+
+GET http://localhost:4000/api/v1/frontend/get-data
+
+
+
+### PUT: UPDATE FRONTEND PROJECT
+
+PUT http://localhost:4000/api/v1/frontend/edit-data/10
+Content-Type: application/json
+
+{
+    "project_name": "UPDATED PROJECT NAME",
+    "role": "JRN Backend Developer",
+    "stacks": [
+        "Python", "Django", "PostgreSQL"
+    ],
+    "category": "FinTech",
+    "project_link": "https://updated-link.com",
+    "github_link": "https://github.com/updated-repo"
+}
+
+
+
+### DELETE: REMOVE SINGLE FRONTEND PROJECT
+DELETE http://localhost:4000/api/v1/frontend/remove-data/10
+
+
+
+
+### MOBILE APP API TESTS
+
+
+### POST: ADD MOBILE APP (with string stacks format)
+
+POST http://localhost:4000/api/v1/mobile/add-mobileApp
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+    "project_name": "Food Delivery App",
+    "industry": "Food & Beverage",
+    "stacks": "Flutter, Firebase, Google Maps API",
+    "designer": "Jane Smith",
+    "status": "Completed",
+    "project_link": "https://foodapp.com",
+    "github_link": "https://github.com/user/food-app"
+}
+
+
+### GET: GET ALL MOBILE APPS (simplified
+
+GET http://localhost:4000/api/v1/mobile/get-all-mobileApps
+
+
+
+### GET: GET MOBILE APP BY ID
+
+GET http://localhost:4000/api/v1/mobile/get-mobileApp/3
+
+
+
+### PUT: UPDATE MOBILE APP (basic info only)
+
+PUT http://localhost:4000/api/v1/mobile/update-mobileApp/3
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+    "project_name": "Updated Shopping App",
+    "industry": "E-Commerce",
+    "status": "Completed",
+    "stacks": ["React Native", "Node.js", "PostgreSQL", "Redis"],
+    "designer": "John Doe Updated",
+    "status": "Completed",
+    "project_link": "https://updated-example.com",
+    "github_link": "https://github.com/user/updated-shopping-app"
+}
+
+
+
+### DELETE: DELETE MOBILE APP
+
+DELETE http://localhost:4000/api/v1/mobile/delete-mobileApp/3
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+
+### GET: GET MOBILE APPS STATISTICS (Admin only)
+
+GET http://localhost:4000/api/v1/mobile/get-mobileApps-stats
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+
+
+### BACKEND PROJECT API TESTS
+
+
+
+### POST: ADD BACKEND PROJECTS - MULTIPLE PROJECTS
+
+POST http://localhost:4000/api/v1/backend/add-data
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+    "projects": [
+        {
+            "project_name": "E-Commerce API",
+            "stack": [
+                "Node.js", "Express", "PostgreSQL", "Redis"
+            ],
+            "description": "RESTful API for e-commerce platform with authentication, product management, order processing, and payment integration. Includes rate limiting, caching, and comprehensive error handling.",
+            "code": "const express = require('express');\nconst app = express();\n\n// Middleware\napp.use(express.json());\n\n// Routes\napp.get('/api/products', getAllProducts);\napp.post('/api/orders', createOrder);\n\nmodule.exports = app;",
+            "github_link": "https://github.com/user/ecommerce-api",
+            "project_link": "https://api.myecommerce.com"
+        },
+        {
+            "project_name": "Task Management API",
+            "stack": [
+                "Python", "FastAPI", "MongoDB", "JWT"
+            ],
+            "description": "High-performance task management API with real-time notifications, team collaboration features, and advanced filtering capabilities. Built with FastAPI for optimal performance.",
+            "code": "from fastapi import FastAPI, Depends\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Task(BaseModel):\n    title: str\n    description: str\n    completed: bool = False\n\n@app.post('/tasks/')\nasync def create_task(task: Task):\n    return {'message': 'Task created', 'task': task}",
+            "github_link": "https://github.com/user/task-api",
+            "project_link": "https://tasks-api.herokuapp.com"
+        },
+        {
+            "project_name": "Authentication Microservice",
+            "stack": [
+                "Go", "Gin", "PostgreSQL", "JWT", "Docker"
+            ],
+            "description": "Scalable authentication microservice with OAuth2, JWT tokens, rate limiting, and comprehensive security features. Containerized with Docker for easy deployment.",
+            "code": "package main\n\nimport \"github.com/gin-gonic/gin\"\n\nfunc main() {\n    router := gin.Default()\n    \n    auth := router.Group(\"/api/auth\")\n    {\n        auth.POST(\"/login\", handleLogin)\n        auth.POST(\"/register\", handleRegister)\n        auth.POST(\"/refresh\", handleRefresh)\n    }\n    \n    router.Run(\":8080\")\n}",
+            "github_link": "https://github.com/user/auth-service"
+        }
+    ]
+}
+
+
+### POST: ADD SINGLE BACKEND PROJECT
+
+POST http://localhost:4000/api/v1/backend/add-single
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+    "project_name": "Social Media API",
+    "stack": [
+        "Node.js", "Express", "MongoDB", "Socket.io", "AWS S3"
+    ],
+    "description": "Comprehensive social media API with real-time messaging, file uploads, news feed algorithms, and social interactions. Features include user authentication, post management, comments, likes, and real-time notifications.",
+    "code": "const express = require('express');\nconst mongoose = require('mongoose');\nconst socketIo = require('socket.io');\nconst http = require('http');\n\nconst app = express();\nconst server = http.createServer(app);\nconst io = socketIo(server);\n\n// Middleware\napp.use(express.json());\napp.use(cors());\n\n// Socket.io connection\nio.on('connection', (socket) => {\n    console.log('User connected:', socket.id);\n    \n    socket.on('message', (data) => {\n        io.emit('message', data);\n    });\n    \n    socket.on('disconnect', () => {\n        console.log('User disconnected:', socket.id);\n    });\n});\n\n// Routes\napp.post('/api/posts', createPost);\napp.get('/api/feed', getFeed);\napp.post('/api/posts/:id/like', likePost);\napp.post('/api/posts/:id/comment', addComment);\n\nserver.listen(5000, () => {\n    console.log('Server running on port 5000');\n});",
+    "github_link": "https://github.com/user/social-media-api",
+    "project_link": "https://social-api.myapp.com"
+}
+
+
+### GET: FETCH ALL BACKEND PROJECTS
+
+GET http://localhost:4000/api/v1/backend/get-data
+
+
+
+### GET: FETCH ALL BACKEND PROJECTS WITH QUERY PARAMETERS
+
+GET http://localhost:4000/api/v1/backend/get-data?search=API&stack_filter=Node.js&sort_by=created_at&sort_order=DESC
+
+
+### GET: GET BACKEND PROJECT BY ID
+
+GET http://localhost:4000/api/v1/backend/get-data/1
+
+
+### PUT: UPDATE BACKEND PROJECT (basic info only)
+
+PUT http://localhost:4000/api/v1/backend/edit-data/1
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN
+
+{
+    "project_name": "Updated E-Commerce API v2.0",
+    "stack": [
+        "Node.js", "Express", "PostgreSQL", "Redis", "Docker", "GraphQL"
+    ],
+    "description": "Enhanced e-commerce API with GraphQL support, microservices architecture, and advanced caching strategies. Now includes real-time inventory management and AI-powered recommendation engine.",
+    "code": "const express = require('express');\nconst { graphqlHTTP } = require('express-graphql');\nconst { buildSchema } = require('graphql');\nconst redis = require('redis');\n\nconst app = express();\nconst redisClient = redis.createClient();\n\n// GraphQL Schema\nconst schema = buildSchema(`\n    type Product {\n        id: ID!\n        name: String!\n        price: Float!\n        category: String!\n        inStock: Boolean!\n    }\n    \n    type Query {\n        products: [Product]\n        product(id: ID!): Product\n        recommendedProducts(userId: ID!): [Product]\n    }\n    \n    type Mutation {\n        addProduct(name: String!, price: Float!, category: String!): Product\n        updateInventory(productId: ID!, quantity: Int!): Boolean\n    }\n`);\n\n// GraphQL resolvers\nconst root = {\n    products: () => getProductsFromDB(),\n    product: ({ id }) => getProductById(id),\n    recommendedProducts: ({ userId }) => getRecommendations(userId),\n    addProduct: ({ name, price, category }) => createProduct({ name, price, category }),\n    updateInventory: ({ productId, quantity }) => updateStock(productId, quantity)\n};\n\n// GraphQL endpoint\napp.use('/graphql', graphqlHTTP({\n    schema: schema,\n    rootValue: root,\n    graphiql: true\n}));\n\n// REST API endpoints for backward compatibility\napp.get('/api/products', async (req, res) => {\n    const cachedProducts = await redisClient.get('products');\n    if (cachedProducts) {\n        return res.json(JSON.parse(cachedProducts));\n    }\n    \n    const products = await getProductsFromDB();\n    await redisClient.setex('products', 300, JSON.stringify(products));\n    res.json(products);\n});\n\napp.listen(3000, () => {\n    console.log('Enhanced E-Commerce API running on port 3000');\n});",
+    "github_link": "https://github.com/user/ecommerce-api-v2",
+    "project_link": "https://api-v2.myecommerce.com"
+}
+
+### DELETE: REMOVE SINGLE BACKEND PROJECT
+
+DELETE http://localhost:4000/api/v1/backend/remove-data/1
+Authorization: Bearer YOUR_ADMIN_TOKEN
