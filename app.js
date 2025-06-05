@@ -45,7 +45,7 @@ app.get('/', (req, res) => {
 const authRouter = require('./routes/Auth');
 app.use('/api/v1', authRouter);
 
-const frontendRouter = require('./routes/frontend')
+const frontendRouter = require('./routes/Frontend')
 app.use('/api/v1', frontendRouter)
 
 const mobileAppRouter = require('./routes/MobileApp')
