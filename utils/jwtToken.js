@@ -21,9 +21,10 @@ const sendToken = (user, statusCode, res) => {
     sameSite: "none",
   };
 
-  res
-    .status(statusCode)
-    .cookie("token", token, options)
+  res.cookie("token", token, options)
+  console.log("Set-Cookie header:", res.getHeader("Set-Cookie"))
+
+  res.status(statusCode)
     .json({
       success: true,
       token,
