@@ -18,7 +18,7 @@ const sendToken = (user, statusCode, res) => {
     expires: expiresDate,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "none",
   };
 
   res
@@ -30,7 +30,7 @@ const sendToken = (user, statusCode, res) => {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role || "guest",
+        role: user.role,
       },
     });
 };
