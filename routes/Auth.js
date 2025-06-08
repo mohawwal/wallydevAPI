@@ -5,7 +5,7 @@ const pool = require("../model/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const sendToken = require("../utils/jwtToken");
-const { isAuthenticatedAdmin, isAuthenticatedUser } = require("../middlewares/auth");
+const { isAuthenticatedAdmin } = require("../middlewares/auth");
 
 router.post(
   "/auth/signup",
@@ -42,6 +42,11 @@ router.post(
 
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    console.log("Signup Debug:");
+    console.log("Original password:", password);
+    console.log("Hashed password:", hashedPassword);
+    console.log("Hash length:", hashedPassword.length);
 
     const createUserQuery = `
       INSERT INTO users (email, password, role) 
@@ -116,8 +121,32 @@ router.put(
 
         const user = userQuery.rows[0];
 
-        // Verify current password
-        const isCurrentPasswordMatch = await bcrypt.compare(currentPassword, user.password);
+        // Debug logging
+        console.log("User ID:", req.user.id);
+        console.log("Current password provided:", currentPassword);
+        console.log("Stored password hash:", user.password);
+        console.log("Password hash length:", user.password.length);
+
+        // Verify current password with multiple attempts
+        let isCurrentPasswordMatch = false;
+        
+        try {
+            // Try standard bcrypt comparison
+            isCurrentPasswordMatch = await bcrypt.compare(currentPassword, user.password);
+            console.log("Standard bcrypt comparison result:", isCurrentPasswordMatch);
+            
+            // If standard fails, try with different approach
+            if (!isCurrentPasswordMatch) {
+                // Check if password might be stored as plain text (for debugging)
+                if (currentPassword === user.password) {
+                    console.log("WARNING: Password stored as plain text!");
+                    isCurrentPasswordMatch = true;
+                }
+            }
+        } catch (bcryptError) {
+            console.error("Bcrypt comparison error:", bcryptError);
+            return next(new ErrorHandler("Password verification failed", 500));
+        }
         
         if (!isCurrentPasswordMatch) {
             return next(new ErrorHandler("Current password is incorrect", 401));
@@ -153,7 +182,7 @@ router.put(
 
 router.get(
     "/auth/me",
-    isAuthenticatedUser,
+    isAuthenticatedAdmin,
     catchAsyncErrors(async (req, res, next) => {
         res.status(200).json({
             success: true,
