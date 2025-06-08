@@ -102,6 +102,74 @@ router.get(
     })
 );
 
+
+router.put(
+    "/auth/change-password",
+    isAuthenticatedAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            return next(new ErrorHandler("Current password, new password, and confirm new password are required", 400));
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            return next(new ErrorHandler("New passwords do not match", 400));
+        }
+
+        if (newPassword.length < 6) {
+            return next(new ErrorHandler("New password must be at least 6 characters long", 400));
+        }
+
+        if (currentPassword === newPassword) {
+            return next(new ErrorHandler("New password must be different from current password", 400));
+        }
+
+        // Get current user from database
+        const userQuery = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+        
+        if (userQuery.rows.length === 0) {
+            return next(new ErrorHandler("User not found", 404));
+        }
+
+        const user = userQuery.rows[0];
+
+        // Verify current password
+        const isCurrentPasswordMatch = await bcrypt.compare(currentPassword, user.password);
+        
+        if (!isCurrentPasswordMatch) {
+            return next(new ErrorHandler("Current password is incorrect", 401));
+        }
+
+        // Hash new password
+        const saltRounds = 12;
+        const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password in database
+        const updateQuery = `
+            UPDATE users 
+            SET password = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING id, email, role, created_at
+        `;
+
+        const updatedUserResult = await pool.query(updateQuery, [hashedNewPassword, req.user.id]);
+        const updatedUser = updatedUserResult.rows[0];
+
+        res.status(200).json({
+            success: true,
+            message: "Password changed successfully",
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                created_at: updatedUser.created_at
+            }
+        });
+    }),
+);
+
+
 router.get(
     "/get-all-users",
     catchAsyncErrors(async (req, res, next) => {
