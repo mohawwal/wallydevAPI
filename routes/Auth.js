@@ -5,7 +5,7 @@ const pool = require("../model/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const sendToken = require("../utils/jwtToken");
-const { isAuthenticatedAdmin } = require("../middlewares/auth");
+const { isAuthenticatedAdmin, isAuthenticatedUser } = require("../middlewares/auth");
 
 router.post(
   "/auth/signup",
@@ -153,7 +153,7 @@ router.put(
 
 router.get(
     "/auth/me",
-    isAuthenticatedAdmin,
+    isAuthenticatedUser,
     catchAsyncErrors(async (req, res, next) => {
         res.status(200).json({
             success: true,
