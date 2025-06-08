@@ -56,7 +56,6 @@ router.post(
   }),
 );
 
-
 router.post(
     "/auth/login",
     catchAsyncErrors(async (req, res, next) => {
@@ -85,23 +84,6 @@ router.post(
         sendToken(user, 200, res);
     }),
 );
-
-router.get(
-    "/auth/me",
-    isAuthenticatedAdmin,
-    catchAsyncErrors(async (req, res, next) => {
-        res.status(200).json({
-            success: true,
-            user: {
-                id: req.user.id,
-                email: req.user.email,
-                role: req.user.role,
-                created_at: req.user.created_at
-            }
-        });
-    })
-);
-
 
 router.put(
     "/auth/change-password",
@@ -148,7 +130,7 @@ router.put(
         // Update password in database
         const updateQuery = `
             UPDATE users 
-            SET password = $1, updated_at = CURRENT_TIMESTAMP 
+            SET password = $1 
             WHERE id = $2 
             RETURNING id, email, role, created_at
         `;
@@ -169,6 +151,21 @@ router.put(
     }),
 );
 
+router.get(
+    "/auth/me",
+    isAuthenticatedAdmin,
+    catchAsyncErrors(async (req, res, next) => {
+        res.status(200).json({
+            success: true,
+            user: {
+                id: req.user.id,
+                email: req.user.email,
+                role: req.user.role,
+                created_at: req.user.created_at
+            }
+        });
+    })
+);
 
 router.get(
     "/get-all-users",

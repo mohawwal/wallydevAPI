@@ -11,6 +11,14 @@ const createUsersTable = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    
+    
+    await pool.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+    
+    console.log("Users table ensured with updated_at column");
   } catch (err) {
     console.error("Error creating users table:", err);
   }
@@ -61,7 +69,6 @@ const createMobileAppsTable = async () => {
     console.error("Error creating mobile apps table:", err);
   }
 };
-
 
 const createBackendProjectsTable = async () => {
     try {
