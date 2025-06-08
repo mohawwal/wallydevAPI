@@ -6,7 +6,6 @@ const cloudinary = require('cloudinary').v2;
 
 
 const allowedOrigins = [
-    'http://localhost:4000',
     'http://localhost:5173'
 ];
 
