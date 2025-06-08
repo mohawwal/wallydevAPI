@@ -147,6 +147,37 @@ router.get(
 );
 
 
+router.get(
+    "/frontend/get-data/:id",
+    catchAsyncErrors(async (req, res, next) => {
+        const { id } = req.params;
+
+        if (!id || isNaN(id)) {
+            return next(new ErrorHandler("Valid project ID is required", 400));
+        }
+
+        const selectQuery = `
+            SELECT fp.*, u.email as creator_email 
+            FROM frontend_projects fp
+            LEFT JOIN users u ON fp.created_by_email = u.email
+            WHERE fp.id = $1
+        `;
+        
+        const result = await pool.query(selectQuery, [parseInt(id)]);
+
+        if (result.rows.length === 0) {
+            return next(new ErrorHandler("Frontend project not found", 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Frontend project fetched successfully",
+            project: result.rows[0]
+        });
+    })
+);
+
+
 // PUT: Edit frontend project
 router.put(
     "/frontend/edit-data/:id",

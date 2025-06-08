@@ -22,7 +22,6 @@ const sendToken = (user, statusCode, res) => {
   };
 
   res.cookie("token", token, options)
-  console.log("Set-Cookie header:", res.getHeader("Set-Cookie"))
 
   res.status(statusCode)
     .json({

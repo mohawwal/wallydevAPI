@@ -21,7 +21,7 @@ Content-Type: application/json
 
 {
     "email": "user@gmail.com",
-    "password": "password"
+    "password": "User2025."
 }
 
 
@@ -97,6 +97,10 @@ Content-Type: application/json
     "github_link": "github"
 }
 
+
+### GET: PROJECTS BY ID
+
+GET http://localhost:4000/api/v1/frontend/get-data/6
 
 
 ### GET: FETCH ALL FRONTEND PROJECTS
