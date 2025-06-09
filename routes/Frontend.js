@@ -45,11 +45,11 @@ router.post(
             await client.query('BEGIN');
 
             for (const project of projects) {
-                const { project_name, role, stacks, category, project_link, github_link } = project;
+                const { project_name, role, stacks, category, company, project_link, github_link } = project;
 
                 const insertQuery = `
-                    INSERT INTO frontend_projects (project_name, role, stacks, category, project_link, github_link, created_by_email)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    INSERT INTO frontend_projects (project_name, role, stacks, category, company, project_link, github_link, created_by_email)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                     RETURNING *
                 `;
 
@@ -58,6 +58,7 @@ router.post(
                     role,
                     stacks,
                     category,
+                    company || null,
                     project_link || null,
                     github_link || null,
                     req.user.email
@@ -89,7 +90,7 @@ router.post(
     "/frontend/add-single",
     isAuthenticatedAdmin,
     catchAsyncErrors(async (req, res, next) => {
-        const { project_name, role, stacks, category, project_link, github_link } = req.body;
+        const { project_name, role, stacks, category, company, project_link, github_link } = req.body;
 
         if (!project_name || !role || !stacks || !category) {
             return next(new ErrorHandler("Project name, role, stacks, and category are required", 400));
@@ -101,8 +102,8 @@ router.post(
         }
 
         const insertQuery = `
-            INSERT INTO frontend_projects (project_name, role, stacks, category, project_link, github_link, created_by_email)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO frontend_projects (project_name, role, stacks, category, company, project_link, github_link, created_by_email)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         `;
 
@@ -111,6 +112,7 @@ router.post(
             role,
             stacksArray,
             category,
+            company || null,
             project_link || null,
             github_link || null,
             req.user.email
@@ -184,7 +186,7 @@ router.put(
     isAuthenticatedAdmin,
     catchAsyncErrors(async (req, res, next) => {
         const { id } = req.params;
-        const { project_name, role, stacks, category, project_link, github_link } = req.body;
+        const { project_name, role, stacks, category, company, project_link, github_link } = req.body;
 
         if (!id || isNaN(id)) {
             return next(new ErrorHandler("Valid project ID is required", 400));
@@ -236,6 +238,12 @@ router.put(
             paramCount++;
             updateFields.push(`category = $${paramCount}`);
             updateValues.push(category);
+        }
+
+        if (company !== undefined) {
+            paramCount++;
+            updateFields.push(`company = $${paramCount}`);
+            updateValues.push(company || null);
         }
 
         if (project_link !== undefined) {

@@ -52,6 +52,7 @@ Content-Type: application/json
         {
             "project_name": "LONDON TAKE A BREAK",
             "role": "Backend developer",
+            "company": "xyz",
             "stacks": [
                 "Python", "Tailwind"
             ],
@@ -62,20 +63,13 @@ Content-Type: application/json
         {
             "project_name": "E-Commerce Platform",
             "role": "Full Stack Developer",
+            "company": "Facebook",
             "stacks": [
                 "React", "Node.js", "MongoDB"
             ],
             "category": "E-Commerce",
             "project_link": "https://example.com",
             "github_link": "https://github.com/user/ecommerce"
-        },
-        {
-            "project_name": "Task Manager App",
-            "role": "Frontend Developer",
-            "stacks": [
-                "Vue.js", "TypeScript", "Pinia"
-            ],
-            "category": "Productivity"
         }
     ]
 }
@@ -89,6 +83,7 @@ Content-Type: application/json
 {
     "project_name": "LONDON TAKE A BREAK",
     "role": "Backend developer",
+    "company": "Facebook",
     "stacks": [
         "Python", "Tailwind"
     ],
@@ -100,7 +95,7 @@ Content-Type: application/json
 
 ### GET: PROJECTS BY ID
 
-GET http://localhost:4000/api/v1/frontend/get-data/6
+GET http://localhost:4000/api/v1/frontend/get-data/5
 
 
 ### GET: FETCH ALL FRONTEND PROJECTS
@@ -148,6 +143,7 @@ Authorization: Bearer YOUR_ADMIN_TOKEN
     "stacks": "Flutter, Firebase, Google Maps API",
     "designer": "Jane Smith",
     "status": "Completed",
+    "company": "SpaceX",
     "project_link": "https://foodapp.com",
     "github_link": "https://github.com/user/food-app"
 }

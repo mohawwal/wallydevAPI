@@ -67,14 +67,14 @@ router.post(
 
             for (let i = 0; i < parsedProjects.length; i++) {
                 const project = parsedProjects[i];
-                const { project_name, stack, description, code, github_link, project_link } = project;
+                const { project_name, stack, description, code, company, github_link, project_link } = project;
                 
                 // Get corresponding image if uploaded
                 const imageUrl = uploadedFiles[i] ? uploadedFiles[i].path : null;
 
                 const insertQuery = `
-                    INSERT INTO backend_projects (project_name, stack, description, code, image, github_link, project_link, created_by_email)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    INSERT INTO backend_projects (project_name, stack, description, code, image, company, github_link, project_link, created_by_email)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     RETURNING *
                 `;
 
@@ -84,6 +84,7 @@ router.post(
                     description,
                     code || null,
                     imageUrl,
+                    company || null,
                     github_link || null,
                     project_link || null,
                     req.user.email
@@ -131,7 +132,7 @@ router.post(
     isAuthenticatedAdmin,
     uploadMixed.single('image'),
     catchAsyncErrors(async (req, res, next) => {
-        const { project_name, stack, description, code, github_link, project_link } = req.body;
+        const { project_name, stack, description, code, company, github_link, project_link } = req.body;
 
         if (!project_name || !stack || !description) {
             // Clean up uploaded file if validation fails
@@ -178,8 +179,8 @@ router.post(
 
         try {
             const insertQuery = `
-                INSERT INTO backend_projects (project_name, stack, description, code, image, github_link, project_link, created_by_email)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                INSERT INTO backend_projects (project_name, stack, description, code, image, company, github_link, project_link, created_by_email)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING *
             `;
 
@@ -189,6 +190,7 @@ router.post(
                 description,
                 code || null,
                 imageUrl,
+                company || null,
                 github_link || null,
                 project_link || null,
                 req.user.email
@@ -277,7 +279,7 @@ router.put(
     uploadMixed.single('image'),
     catchAsyncErrors(async (req, res, next) => {
         const { id } = req.params;
-        const { project_name, stack, description, code, github_link, project_link, remove_image } = req.body;
+        const { project_name, stack, description, code, company, github_link, project_link, remove_image } = req.body;
 
         if (!id || isNaN(id)) {
             // Clean up uploaded file if validation fails
@@ -410,6 +412,12 @@ router.put(
             paramCount++;
             updateFields.push(`code = $${paramCount}`);
             updateValues.push(code || null);
+        }
+
+        if (company !== undefined) {
+            paramCount++;
+            updateFields.push(`company = $${paramCount}`);
+            updateValues.push(company || null);
         }
 
         if (github_link !== undefined) {

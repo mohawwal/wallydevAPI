@@ -18,6 +18,7 @@ router.post(
             industry, 
             stacks, 
             designer, 
+            company,
             status, 
             project_link, 
             github_link,
@@ -93,22 +94,23 @@ router.post(
                 stacksArray = [stacks];
             }
 
-            console.log('Final data to insert:', {
-                project_name,
-                industry,
-                stacks: stacksArray,
-                designer,
-                status: projectStatus,
-                media_count: mediaArray.length
-            });
+            // console.log('Final data to insert:', {
+            //     project_name,
+            //     industry,
+            //     stacks: stacksArray,
+            //     designer,
+            //     company,
+            //     status: projectStatus,
+            //     media_count: mediaArray.length
+            // });
 
             // Insert mobile app data
             const insertQuery = `
                 INSERT INTO mobile_apps (
-                    project_name, industry, stacks, designer, status, 
+                    project_name, industry, stacks, designer, company, status, 
                     media, project_link, github_link, created_by_email, 
                     created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) 
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
                 RETURNING *
             `;
             
@@ -117,6 +119,7 @@ router.post(
                 industry,
                 stacksArray,
                 designer || null,
+                company || null,
                 projectStatus,
                 JSON.stringify(mediaArray),
                 project_link || null,
@@ -166,6 +169,7 @@ router.put(
             industry, 
             stacks, 
             designer, 
+            company,
             status, 
             project_link, 
             github_link,
@@ -263,8 +267,8 @@ router.put(
             const updateQuery = `
                 UPDATE mobile_apps 
                 SET project_name = $1, industry = $2, stacks = $3, designer = $4, 
-                    status = $5, media = $6, project_link = $7, github_link = $8, updated_at = NOW()
-                WHERE id = $9
+                    company = $5, status = $6, media = $7, project_link = $8, github_link = $9, updated_at = NOW()
+                WHERE id = $10
                 RETURNING *
             `;
             
@@ -273,6 +277,7 @@ router.put(
                 industry || currentApp.industry,
                 stacksArray,
                 designer !== undefined ? designer : currentApp.designer,
+                company !== undefined ? company : currentApp.company,
                 status || currentApp.status,
                 JSON.stringify(currentMedia),
                 project_link !== undefined ? project_link : currentApp.project_link,
@@ -417,7 +422,7 @@ router.get(
     })
 );
 
-// GET: Get mobile apps statistics
+// GET: Get mobile apps with company statistics
 router.get(
     "/mobile/get-mobileApps-stats",
     isAuthenticatedAdmin,
@@ -430,6 +435,7 @@ router.get(
                 COUNT(CASE WHEN LOWER(status) LIKE '%hold%' THEN 1 END) as on_hold_apps,
                 COUNT(CASE WHEN LOWER(status) LIKE '%cancelled%' THEN 1 END) as cancelled_apps,
                 COUNT(DISTINCT industry) as unique_industries,
+                COUNT(DISTINCT company) as unique_companies,
                 AVG(jsonb_array_length(COALESCE(media, '[]'::jsonb))) as avg_media_per_app,
                 SUM(jsonb_array_length(COALESCE(media, '[]'::jsonb))) as total_media_files
             FROM mobile_apps
@@ -443,6 +449,18 @@ router.get(
             FROM mobile_apps
             GROUP BY industry
             ORDER BY count DESC
+        `;
+
+        const companyStatsQuery = `
+            SELECT 
+                company,
+                COUNT(*) as count,
+                ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM mobile_apps WHERE company IS NOT NULL)), 2) as percentage
+            FROM mobile_apps
+            WHERE company IS NOT NULL
+            GROUP BY company
+            ORDER BY count DESC
+            LIMIT 10
         `;
 
         const stacksStatsQuery = `
@@ -461,15 +479,17 @@ router.get(
                 created_at, 
                 status,
                 industry,
+                company,
                 jsonb_array_length(COALESCE(media, '[]'::jsonb)) as media_count
             FROM mobile_apps
             ORDER BY created_at DESC
             LIMIT 5
         `;
 
-        const [statsResult, industryResult, stacksResult, recentResult] = await Promise.all([
+        const [statsResult, industryResult, companyResult, stacksResult, recentResult] = await Promise.all([
             pool.query(statsQuery),
             pool.query(industryStatsQuery),
+            pool.query(companyStatsQuery),
             pool.query(stacksStatsQuery),
             pool.query(recentAppsQuery)
         ]);
@@ -479,6 +499,7 @@ router.get(
             data: {
                 overview: statsResult.rows[0],
                 industry_breakdown: industryResult.rows,
+                company_breakdown: companyResult.rows,
                 popular_stacks: stacksResult.rows,
                 recent_apps: recentResult.rows
             }
