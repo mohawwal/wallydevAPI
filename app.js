@@ -7,6 +7,7 @@ const cloudinary = require('cloudinary').v2;
 
 const allowedOrigins = [
     'https://wally-dev-admin.vercel.app',
+    'https://awwal-dev.vercel.app/',
     'http://localhost:5173'
 ];
 
