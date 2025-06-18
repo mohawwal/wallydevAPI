@@ -8,7 +8,7 @@ const errorHandler = require('./middlewares/errors');
 
 const allowedOrigins = [
     'https://wally-dev-admin.vercel.app',
-    'https://awwal-dev.vercel.app/',
+    'https://awwal-dev.vercel.app',
     'http://localhost:5173'
 ];
 
@@ -18,7 +18,7 @@ app.use(cors({
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         } else {
-            console.log('CORS blocked origin:', origin);
+            // console.log('CORS blocked origin:', origin);
             return callback(new Error('Not allowed by CORS'));
         }
     },
