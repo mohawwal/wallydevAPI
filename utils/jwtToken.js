@@ -18,8 +18,12 @@ const sendToken = (user, statusCode, res) => {
     expires: expiresDate,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "none",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: '/'
   };
+
+  console.log('Setting cookie with options:', options);
+  console.log('Token being set:', token ? 'Present' : 'Missing');
 
   res.cookie("token", token, options)
 
@@ -32,6 +36,7 @@ const sendToken = (user, statusCode, res) => {
         email: user.email,
         role: user.role,
       },
+      message: "Login successful"
     });
 };
 

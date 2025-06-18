@@ -8,16 +8,11 @@ const createUsersTable = async () => {
         email VARCHAR(255) UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role VARCHAR(50) DEFAULT 'guest',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    await pool.query(`
-      ALTER TABLE users 
-      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-    `);
-    
-    console.log("Users table ensured with updated_at column");
+    console.log("Users table ensured");
   } catch (err) {
     console.error("Error creating users table:", err);
   }
@@ -40,14 +35,7 @@ const createFrontendProjectsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Add company column if it doesn't exist (for existing tables)
-    await pool.query(`
-      ALTER TABLE frontend_projects 
-      ADD COLUMN IF NOT EXISTS company VARCHAR(255);
-    `);
-    
-    console.log("Frontend projects table ensured with company column");
+    console.log("Frontend projects table ensured");
   } catch (err) {
     console.error("Error creating frontend projects table:", err);
   }
@@ -72,14 +60,7 @@ const createMobileAppsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Add company column if it doesn't exist (for existing tables)
-    await pool.query(`
-      ALTER TABLE mobile_apps 
-      ADD COLUMN IF NOT EXISTS company VARCHAR(255);
-    `);
-    
-    console.log("Mobile apps table ensured with company column");
+    console.log("Mobile apps table ensured");
   } catch (err) {
     console.error("Error creating mobile apps table:", err);
   }
@@ -103,14 +84,7 @@ const createBackendProjectsTable = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Add company column if it doesn't exist (for existing tables)
-    await pool.query(`
-      ALTER TABLE backend_projects 
-      ADD COLUMN IF NOT EXISTS company VARCHAR(255);
-    `);
-    
-    console.log('Backend projects table ensured with company column');
+    console.log('Backend projects table ensured');
   } catch (err) {
     console.error('Error creating backend projects table:', err);
   }

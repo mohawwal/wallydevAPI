@@ -34,11 +34,11 @@ router.post(
       return next(new ErrorHandler("User already exists with this email", 400));
     }
 
-    // ✅ Check if this is the first user in the database
+    // Check if this is the first user in the database
     const countResult = await pool.query('SELECT COUNT(*) FROM users');
     const isFirstUser = parseInt(countResult.rows[0].count, 10) === 0;
 
-    const role = isFirstUser ? 'admin' : 'guest'; // ✅ Assign admin if first user
+    const role = isFirstUser ? 'admin' : 'guest';
 
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -59,6 +59,8 @@ router.post(
 router.post(
     "/auth/login",
     catchAsyncErrors(async (req, res, next) => {
+        console.log('Login attempt:', req.body);
+        
         const { email, password } = req.body;
 
         if (!email || !password) {
@@ -69,18 +71,22 @@ router.post(
         const userQuery = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
         
         if (userQuery.rows.length === 0) {
+            console.log('User not found:', email);
             return next(new ErrorHandler("Invalid email or password", 401));
         }
 
         const user = userQuery.rows[0];
+        console.log('User found:', user.email, 'Role:', user.role);
 
         // Compare passwords
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         
         if (!isPasswordMatch) {
+            console.log('Password mismatch for user:', email);
             return next(new ErrorHandler("Invalid email or password", 401));
         }
 
+        console.log('Login successful for:', user.email);
         sendToken(user, 200, res);
     }),
 );
@@ -130,7 +136,7 @@ router.put(
         // Update password in database
         const updateQuery = `
             UPDATE users 
-            SET password = $1 
+            SET password = $1, updated_at = CURRENT_TIMESTAMP
             WHERE id = $2 
             RETURNING id, email, role, created_at
         `;
@@ -155,6 +161,8 @@ router.get(
     "/auth/me",
     isAuthenticatedUser,
     catchAsyncErrors(async (req, res, next) => {
+        console.log('Getting user info for:', req.user.email);
+        
         res.status(200).json({
             success: true,
             user: {
@@ -169,11 +177,13 @@ router.get(
 
 router.get(
     "/get-all-users",
+    isAuthenticatedAdmin,
     catchAsyncErrors(async (req, res, next) => {
-        const usersQuery = await pool.query('SELECT id, email, role, created_at FROM users');
+        const usersQuery = await pool.query('SELECT id, email, role, created_at FROM users ORDER BY created_at DESC');
         res.status(200).json({
             success: true,
-            users: usersQuery.rows
+            users: usersQuery.rows,
+            count: usersQuery.rows.length
         });
     }),
 );
@@ -181,9 +191,14 @@ router.get(
 router.post(
     "/auth/logout",
     catchAsyncErrors(async (req, res, next) => {
-        res.cookie('token', null, {
-            expires: new Date(Date.now()),
-            httpOnly: true
+        console.log('Logout request received');
+        
+        res.cookie('token', '', {
+            expires: new Date(0),
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: '/'
         });
 
         res.status(200).json({

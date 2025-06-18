@@ -7,6 +7,9 @@ const ErrorHandler = require("../utils/errorHandler")
 exports.isAuthenticatedUser = catchAsyncErrors(async(req, res, next) => {
     const { token } = req.cookies;
 
+    console.log('Auth middleware - Token from cookies:', token ? 'Present' : 'Missing');
+    console.log('All cookies:', req.cookies);
+
     if(!token) {
         return next(new ErrorHandler('Please login to access this resources', 401))
     }
