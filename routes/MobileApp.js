@@ -6,10 +6,10 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const { uploadMixed } = require("../middlewares/upload");
 const { deleteFromCloudinary, generateVideoThumbnail } = require("../utils/cloudinaryHelpers");
+const { uploader } = require("../middlewares/upload");
 const path = require("path");
 const fs = require("fs");
-const compressVideo = require("../utils/videoCompressor");
-
+const { compressVideoWithPreset, getVideoMetadata } = require("../utils/videoCompressor");
 
 // POST: Add mobile app with file uploads
 router.post(
@@ -27,6 +27,7 @@ router.post(
       project_link,
       github_link,
       media_descriptions,
+      compression_preset = 'medium' // Add compression preset option
     } = req.body;
 
     if (!project_name || !industry || !stacks) {
@@ -52,32 +53,72 @@ router.post(
           const description = descriptions[i] || `${isVideo ? "Video" : "Image"} ${i + 1}`;
 
           let filePath = file.path;
+          let originalSize = file.size;
+          let compressedSize = file.size;
+
           if (isVideo) {
-            const compressedPath = path.join(
-              path.dirname(filePath),
-              `compressed-${file.filename}`
-            );
+            console.log(`Processing video: ${file.originalname}`);
+            
             try {
-              await compressVideo(filePath, compressedPath);
-              fs.unlinkSync(filePath);
+              // Get original video metadata
+              const metadata = await getVideoMetadata(filePath);
+              originalSize = metadata.size || file.size;
+              
+              const compressedPath = path.join(
+                path.dirname(filePath),
+                `compressed-${Date.now()}-${file.filename}`
+              );
+              
+              // Compress video with selected preset
+              await compressVideoWithPreset(filePath, compressedPath, compression_preset);
+              
+              // Get compressed file size
+              const stats = fs.statSync(compressedPath);
+              compressedSize = stats.size;
+              
+              // Clean up original file
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+              
               filePath = compressedPath;
-            } catch (err) {
-              console.error("Video compression failed:", err);
+              
+              console.log(`Video compressed: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB`);
+              
+            } catch (compressionError) {
+              console.error("Video compression failed:", compressionError);
+              // Continue with original file if compression fails
+              console.log("Using original video file due to compression failure");
             }
           }
 
+          // Upload to Cloudinary
           const cloudResult = await uploader.upload(filePath, {
             resource_type: isVideo ? "video" : "image",
             folder: "mobile_apps",
+            // Add Cloudinary optimization for videos
+            ...(isVideo && {
+              eager: [
+                { 
+                  quality: "auto:good",
+                  fetch_format: "auto"
+                }
+              ]
+            })
           });
 
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          // Clean up local file
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
 
           mediaArray.push({
             id: Date.now() + i,
             file_url: cloudResult.secure_url,
             file_type: file.mimetype,
             file_size: cloudResult.bytes,
+            original_size: originalSize,
+            compression_ratio: isVideo ? ((originalSize - compressedSize) / originalSize * 100).toFixed(1) : null,
             public_id: cloudResult.public_id,
             description,
             thumbnail_url: isVideo ? generateVideoThumbnail(cloudResult.public_id) : null,
@@ -117,7 +158,23 @@ router.post(
       ]);
 
       await client.query("COMMIT");
-      res.status(201).json({ success: true, message: `Mobile app created successfully`, data: result.rows[0] });
+      
+      // Include compression stats in response
+      const videoStats = mediaArray
+        .filter(media => media.compression_ratio)
+        .map(media => ({
+          name: media.original_name,
+          original_size: `${(media.original_size / 1024 / 1024).toFixed(2)}MB`,
+          compressed_size: `${(media.file_size / 1024 / 1024).toFixed(2)}MB`,
+          compression_ratio: `${media.compression_ratio}%`
+        }));
+
+      res.status(201).json({ 
+        success: true, 
+        message: `Mobile app created successfully`, 
+        data: result.rows[0],
+        compression_stats: videoStats.length > 0 ? videoStats : null
+      });
     } catch (error) {
       await client.query("ROLLBACK");
       if (req.files) {
@@ -155,6 +212,7 @@ router.put(
       media_descriptions,
       remove_media_ids,
       update_media_descriptions,
+      compression_preset = 'medium'
     } = req.body;
 
     const client = await pool.connect();
@@ -202,20 +260,50 @@ router.put(
           const description = descriptions[i] || `${isVideo ? "Video" : "Image"} ${maxOrder + i + 1}`;
 
           let filePath = file.path;
+          let originalSize = file.size;
+          let compressedSize = file.size;
+
           if (isVideo) {
-            const compressedPath = path.join(path.dirname(filePath), `compressed-${file.filename}`);
+            console.log(`Processing video: ${file.originalname}`);
+            
             try {
-              await compressVideo(filePath, compressedPath);
-              fs.unlinkSync(filePath);
+              const metadata = await getVideoMetadata(filePath);
+              originalSize = metadata.size || file.size;
+              
+              const compressedPath = path.join(
+                path.dirname(filePath), 
+                `compressed-${Date.now()}-${file.filename}`
+              );
+              
+              await compressVideoWithPreset(filePath, compressedPath, compression_preset);
+              
+              const stats = fs.statSync(compressedPath);
+              compressedSize = stats.size;
+              
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+              
               filePath = compressedPath;
-            } catch (err) {
-              console.error("Video compression failed:", err);
+              
+              console.log(`Video compressed: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB`);
+              
+            } catch (compressionError) {
+              console.error("Video compression failed:", compressionError);
             }
           }
 
           const cloudResult = await uploader.upload(filePath, {
             resource_type: isVideo ? "video" : "image",
             folder: "mobile_apps",
+            ...(isVideo && {
+              eager: [
+                { 
+                  quality: "auto:good",
+                  fetch_format: "auto"
+                }
+              ]
+            })
           });
 
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -225,6 +313,8 @@ router.put(
             file_url: cloudResult.secure_url,
             file_type: file.mimetype,
             file_size: cloudResult.bytes,
+            original_size: originalSize,
+            compression_ratio: isVideo ? ((originalSize - compressedSize) / originalSize * 100).toFixed(1) : null,
             public_id: cloudResult.public_id,
             description,
             thumbnail_url: isVideo ? generateVideoThumbnail(cloudResult.public_id) : null,
@@ -262,7 +352,22 @@ router.put(
       ]);
 
       await client.query("COMMIT");
-      res.status(200).json({ success: true, message: "Mobile app updated successfully", data: result.rows[0] });
+      
+      const videoStats = currentMedia
+        .filter(media => media.compression_ratio)
+        .map(media => ({
+          name: media.original_name,
+          original_size: `${(media.original_size / 1024 / 1024).toFixed(2)}MB`,
+          compressed_size: `${(media.file_size / 1024 / 1024).toFixed(2)}MB`,
+          compression_ratio: `${media.compression_ratio}%`
+        }));
+
+      res.status(200).json({ 
+        success: true, 
+        message: "Mobile app updated successfully", 
+        data: result.rows[0],
+        compression_stats: videoStats.length > 0 ? videoStats : null
+      });
     } catch (error) {
       await client.query("ROLLBACK");
       if (req.files) {
