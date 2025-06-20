@@ -6,384 +6,302 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
 const { uploadMixed } = require("../middlewares/upload");
 const { deleteFromCloudinary, generateVideoThumbnail } = require("../utils/cloudinaryHelpers");
-const { uploader } = require("../middlewares/upload");
-const path = require("path");
-const fs = require("fs");
-const { compressVideoWithPreset, getVideoMetadata } = require("../utils/videoCompressor");
 
 // POST: Add mobile app with file uploads
 router.post(
-  "/mobile/add-mobileApp",
-  isAuthenticatedAdmin,
-  uploadMixed.array("media", 20),
-  catchAsyncErrors(async (req, res, next) => {
-    const {
-      project_name,
-      industry,
-      stacks,
-      designer,
-      company,
-      status,
-      project_link,
-      github_link,
-      media_descriptions,
-      compression_preset = 'medium' // Add compression preset option
-    } = req.body;
+    "/mobile/add-mobileApp",
+    isAuthenticatedAdmin,
+    uploadMixed.array('media', 20),
+    catchAsyncErrors(async (req, res, next) => {
+        const { 
+            project_name, 
+            industry, 
+            stacks, 
+            designer, 
+            company,
+            status, 
+            project_link, 
+            github_link,
+            media_descriptions,
+        } = req.body;
 
-    if (!project_name || !industry || !stacks) {
-      return next(new ErrorHandler("Project name, industry, and stacks are required", 400));
-    }
+        // Validate required fields
+        if (!project_name || !industry || !stacks) {
+            return next(new ErrorHandler("Project name, industry, and stacks are required", 400));
+        }
 
-    const projectStatus = status || "in_progress";
-    const client = await pool.connect();
+        // Simple status handling - just use whatever is provided or default
+        const projectStatus = status || 'in_progress';
+        
+        const client = await pool.connect();
+        
+        try {
+            await client.query('BEGIN');
 
-    try {
-      await client.query("BEGIN");
-      let mediaArray = [];
-      const descriptions = media_descriptions
-        ? typeof media_descriptions === "string"
-          ? JSON.parse(media_descriptions)
-          : media_descriptions
-        : {};
-
-      if (req.files && req.files.length > 0) {
-        for (let i = 0; i < req.files.length; i++) {
-          const file = req.files[i];
-          const isVideo = file.mimetype.startsWith("video/");
-          const description = descriptions[i] || `${isVideo ? "Video" : "Image"} ${i + 1}`;
-
-          let filePath = file.path;
-          let originalSize = file.size;
-          let compressedSize = file.size;
-
-          if (isVideo) {
-            console.log(`Processing video: ${file.originalname}`);
+            // Process uploaded media files
+            let mediaArray = [];
             
-            try {
-              // Get original video metadata
-              const metadata = await getVideoMetadata(filePath);
-              originalSize = metadata.size || file.size;
-              
-              const compressedPath = path.join(
-                path.dirname(filePath),
-                `compressed-${Date.now()}-${file.filename}`
-              );
-              
-              // Compress video with selected preset
-              await compressVideoWithPreset(filePath, compressedPath, compression_preset);
-              
-              // Get compressed file size
-              const stats = fs.statSync(compressedPath);
-              compressedSize = stats.size;
-              
-              // Clean up original file
-              if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-              }
-              
-              filePath = compressedPath;
-              
-              console.log(`Video compressed: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB`);
-              
-            } catch (compressionError) {
-              console.error("Video compression failed:", compressionError);
-              // Continue with original file if compression fails
-              console.log("Using original video file due to compression failure");
-            }
-          }
+            if (req.files && req.files.length > 0) {
+                console.log(`Processing ${req.files.length} files...`);
+                
+                const descriptions = media_descriptions ? 
+                    (typeof media_descriptions === 'string' ? JSON.parse(media_descriptions) : media_descriptions) 
+                    : {};
+                
+                for (let i = 0; i < req.files.length; i++) {
+                    const file = req.files[i];
+                    const description = descriptions[i] || `${file.mimetype.startsWith('image/') ? 'Image' : 'Video'} ${i + 1}`;
+                    
+                    console.log(`File ${i + 1} uploaded:`, {
+                        originalname: file.originalname,
+                        path: file.path,
+                        filename: file.filename
+                    });
+                    
+                    let thumbnailUrl = null;
+                    if (file.mimetype.startsWith('video/')) {
+                        try {
+                            thumbnailUrl = generateVideoThumbnail(file.filename);
+                        } catch (thumbnailError) {
+                            console.warn('Thumbnail generation failed:', thumbnailError.message);
+                        }
+                    }
 
-          // Upload to Cloudinary
-          const cloudResult = await uploader.upload(filePath, {
-            resource_type: isVideo ? "video" : "image",
-            folder: "mobile_apps",
-            // Add Cloudinary optimization for videos
-            ...(isVideo && {
-              eager: [
-                { 
-                  quality: "auto:good",
-                  fetch_format: "auto"
+                    const mediaItem = {
+                        id: Date.now() + i,
+                        file_url: file.path,
+                        file_type: file.mimetype,
+                        file_size: file.size,
+                        public_id: file.filename,
+                        description: description,
+                        thumbnail_url: thumbnailUrl,
+                        display_order: i + 1,
+                        uploaded_at: new Date().toISOString(),
+                        original_name: file.originalname
+                    };
+
+                    mediaArray.push(mediaItem);
                 }
-              ]
-            })
-          });
+            }
 
-          // Clean up local file
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
+            // Parse stacks - handle both string and array formats
+            let stacksArray;
+            if (typeof stacks === 'string') {
+                stacksArray = stacks.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            } else if (Array.isArray(stacks)) {
+                stacksArray = stacks;
+            } else {
+                stacksArray = [stacks];
+            }
 
-          mediaArray.push({
-            id: Date.now() + i,
-            file_url: cloudResult.secure_url,
-            file_type: file.mimetype,
-            file_size: cloudResult.bytes,
-            original_size: originalSize,
-            compression_ratio: isVideo ? ((originalSize - compressedSize) / originalSize * 100).toFixed(1) : null,
-            public_id: cloudResult.public_id,
-            description,
-            thumbnail_url: isVideo ? generateVideoThumbnail(cloudResult.public_id) : null,
-            display_order: i + 1,
-            uploaded_at: new Date().toISOString(),
-            original_name: file.originalname,
-          });
+            // Insert mobile app data
+            const insertQuery = `
+                INSERT INTO mobile_apps (
+                    project_name, industry, stacks, designer, company, status, 
+                    media, project_link, github_link, created_by_email, 
+                    created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
+                RETURNING *
+            `;
+            
+            const result = await client.query(insertQuery, [
+                project_name,
+                industry,
+                stacksArray,
+                designer || null,
+                company || null,
+                projectStatus,
+                JSON.stringify(mediaArray),
+                project_link || null,
+                github_link || null,
+                req.user.email
+            ]);
+
+            await client.query('COMMIT');
+
+            res.status(201).json({
+                success: true,
+                message: `Mobile app created successfully with ${mediaArray.length} media files`,
+                data: result.rows[0]
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Database error:', error);
+            
+            // Clean up uploaded files if database insertion fails
+            if (req.files) {
+                for (const file of req.files) {
+                    try {
+                        await deleteFromCloudinary(file.filename, file.mimetype.startsWith('video/') ? 'video' : 'image');
+                    } catch (cleanupError) {
+                        console.error('Error cleaning up file:', cleanupError);
+                    }
+                }
+            }
+            
+            throw error;
+        } finally {
+            client.release();
         }
-      }
-
-      const stacksArray = typeof stacks === "string"
-        ? stacks.split(",").map(s => s.trim()).filter(Boolean)
-        : Array.isArray(stacks)
-        ? stacks
-        : [stacks];
-
-      const insertQuery = `
-        INSERT INTO mobile_apps (
-          project_name, industry, stacks, designer, company, status, 
-          media, project_link, github_link, created_by_email, 
-          created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
-        RETURNING *
-      `;
-
-      const result = await client.query(insertQuery, [
-        project_name,
-        industry,
-        stacksArray,
-        designer || null,
-        company || null,
-        projectStatus,
-        JSON.stringify(mediaArray),
-        project_link || null,
-        github_link || null,
-        req.user.email,
-      ]);
-
-      await client.query("COMMIT");
-      
-      // Include compression stats in response
-      const videoStats = mediaArray
-        .filter(media => media.compression_ratio)
-        .map(media => ({
-          name: media.original_name,
-          original_size: `${(media.original_size / 1024 / 1024).toFixed(2)}MB`,
-          compressed_size: `${(media.file_size / 1024 / 1024).toFixed(2)}MB`,
-          compression_ratio: `${media.compression_ratio}%`
-        }));
-
-      res.status(201).json({ 
-        success: true, 
-        message: `Mobile app created successfully`, 
-        data: result.rows[0],
-        compression_stats: videoStats.length > 0 ? videoStats : null
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      if (req.files) {
-        for (const file of req.files) {
-          try {
-            await deleteFromCloudinary(file.filename, file.mimetype.startsWith("video/") ? "video" : "image");
-          } catch (cleanupError) {
-            console.error("Error cleaning up file:", cleanupError);
-          }
-        }
-      }
-      throw error;
-    } finally {
-      client.release();
-    }
-  })
+    })
 );
 
 // PUT: Update mobile app
 router.put(
-  "/mobile/update-mobileApp/:id",
-  isAuthenticatedAdmin,
-  uploadMixed.array("new_media", 20),
-  catchAsyncErrors(async (req, res, next) => {
-    const { id } = req.params;
-    const {
-      project_name,
-      industry,
-      stacks,
-      designer,
-      company,
-      status,
-      project_link,
-      github_link,
-      media_descriptions,
-      remove_media_ids,
-      update_media_descriptions,
-      compression_preset = 'medium'
-    } = req.body;
+    "/mobile/update-mobileApp/:id",
+    isAuthenticatedAdmin,
+    uploadMixed.array('new_media', 20),
+    catchAsyncErrors(async (req, res, next) => {
+        const { id } = req.params;
+        const { 
+            project_name, 
+            industry, 
+            stacks, 
+            designer, 
+            company,
+            status, 
+            project_link, 
+            github_link,
+            media_descriptions,
+            remove_media_ids,
+            update_media_descriptions
+        } = req.body;
 
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      const existingApp = await client.query("SELECT * FROM mobile_apps WHERE id = $1", [id]);
-      if (existingApp.rows.length === 0) return next(new ErrorHandler("Mobile app not found", 404));
+        const client = await pool.connect();
+        
+        try {
+            await client.query('BEGIN');
 
-      const currentApp = existingApp.rows[0];
-      let currentMedia = currentApp.media || [];
-
-      if (remove_media_ids) {
-        const mediaIdsToRemove = JSON.parse(remove_media_ids);
-        const mediaToDelete = currentMedia.filter(media => mediaIdsToRemove.includes(media.id));
-
-        for (const media of mediaToDelete) {
-          try {
-            await deleteFromCloudinary(
-              media.public_id,
-              media.file_type.startsWith("video/") ? "video" : "image"
-            );
-          } catch (cloudinaryError) {
-            console.error("Error deleting from Cloudinary:", cloudinaryError);
-          }
-        }
-
-        currentMedia = currentMedia.filter(media => !mediaIdsToRemove.includes(media.id));
-      }
-
-      if (update_media_descriptions) {
-        const descriptions = JSON.parse(update_media_descriptions);
-        currentMedia = currentMedia.map(media => {
-          if (descriptions[media.id]) media.description = descriptions[media.id];
-          return media;
-        });
-      }
-
-      if (req.files && req.files.length > 0) {
-        const maxOrder = currentMedia.length > 0 ? Math.max(...currentMedia.map(m => m.display_order || 0)) : 0;
-        const descriptions = media_descriptions ? JSON.parse(media_descriptions) : {};
-
-        for (let i = 0; i < req.files.length; i++) {
-          const file = req.files[i];
-          const isVideo = file.mimetype.startsWith("video/");
-          const description = descriptions[i] || `${isVideo ? "Video" : "Image"} ${maxOrder + i + 1}`;
-
-          let filePath = file.path;
-          let originalSize = file.size;
-          let compressedSize = file.size;
-
-          if (isVideo) {
-            console.log(`Processing video: ${file.originalname}`);
-            
-            try {
-              const metadata = await getVideoMetadata(filePath);
-              originalSize = metadata.size || file.size;
-              
-              const compressedPath = path.join(
-                path.dirname(filePath), 
-                `compressed-${Date.now()}-${file.filename}`
-              );
-              
-              await compressVideoWithPreset(filePath, compressedPath, compression_preset);
-              
-              const stats = fs.statSync(compressedPath);
-              compressedSize = stats.size;
-              
-              if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-              }
-              
-              filePath = compressedPath;
-              
-              console.log(`Video compressed: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB`);
-              
-            } catch (compressionError) {
-              console.error("Video compression failed:", compressionError);
+            // Check if mobile app exists
+            const existingApp = await client.query('SELECT * FROM mobile_apps WHERE id = $1', [id]);
+            if (existingApp.rows.length === 0) {
+                return next(new ErrorHandler("Mobile app not found", 404));
             }
-          }
 
-          const cloudResult = await uploader.upload(filePath, {
-            resource_type: isVideo ? "video" : "image",
-            folder: "mobile_apps",
-            ...(isVideo && {
-              eager: [
-                { 
-                  quality: "auto:good",
-                  fetch_format: "auto"
+            const currentApp = existingApp.rows[0];
+            let currentMedia = currentApp.media || [];
+
+            // Remove specified media files
+            if (remove_media_ids) {
+                const mediaIdsToRemove = JSON.parse(remove_media_ids);
+                const mediaToDelete = currentMedia.filter(media => mediaIdsToRemove.includes(media.id));
+                
+                // Delete from Cloudinary
+                for (const media of mediaToDelete) {
+                    try {
+                        await deleteFromCloudinary(
+                            media.public_id, 
+                            media.file_type.startsWith('video/') ? 'video' : 'image'
+                        );
+                    } catch (cloudinaryError) {
+                        console.error('Error deleting from Cloudinary:', cloudinaryError);
+                    }
                 }
-              ]
-            })
-          });
+                
+                currentMedia = currentMedia.filter(media => !mediaIdsToRemove.includes(media.id));
+            }
 
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            // Update existing media descriptions
+            if (update_media_descriptions) {
+                const descriptions = JSON.parse(update_media_descriptions);
+                currentMedia = currentMedia.map(media => {
+                    if (descriptions[media.id]) {
+                        return { ...media, description: descriptions[media.id] };
+                    }
+                    return media;
+                });
+            }
 
-          currentMedia.push({
-            id: Date.now() + i,
-            file_url: cloudResult.secure_url,
-            file_type: file.mimetype,
-            file_size: cloudResult.bytes,
-            original_size: originalSize,
-            compression_ratio: isVideo ? ((originalSize - compressedSize) / originalSize * 100).toFixed(1) : null,
-            public_id: cloudResult.public_id,
-            description,
-            thumbnail_url: isVideo ? generateVideoThumbnail(cloudResult.public_id) : null,
-            display_order: maxOrder + i + 1,
-            uploaded_at: new Date().toISOString(),
-            original_name: file.originalname,
-          });
+            // Add new media files
+            if (req.files && req.files.length > 0) {
+                const maxOrder = currentMedia.length > 0 ? Math.max(...currentMedia.map(m => m.display_order || 0)) : 0;
+                const descriptions = media_descriptions ? JSON.parse(media_descriptions) : {};
+                
+                for (let i = 0; i < req.files.length; i++) {
+                    const file = req.files[i];
+                    const description = descriptions[i] || `${file.mimetype.startsWith('image/') ? 'Image' : 'Video'} ${maxOrder + i + 1}`;
+                    
+                    let thumbnailUrl = null;
+                    if (file.mimetype.startsWith('video/')) {
+                        thumbnailUrl = generateVideoThumbnail(file.filename);
+                    }
+
+                    const mediaItem = {
+                        id: Date.now() + i,
+                        file_url: file.path,
+                        file_type: file.mimetype,
+                        file_size: file.size,
+                        public_id: file.filename,
+                        description: description,
+                        thumbnail_url: thumbnailUrl,
+                        display_order: maxOrder + i + 1,
+                        uploaded_at: new Date().toISOString()
+                    };
+
+                    currentMedia.push(mediaItem);
+                }
+            }
+
+            // Parse stacks if provided
+            let stacksArray = currentApp.stacks;
+            if (stacks) {
+                if (typeof stacks === 'string') {
+                    stacksArray = stacks.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                } else if (Array.isArray(stacks)) {
+                    stacksArray = stacks;
+                }
+            }
+
+            // Update mobile app
+            const updateQuery = `
+                UPDATE mobile_apps 
+                SET project_name = $1, industry = $2, stacks = $3, designer = $4, 
+                    company = $5, status = $6, media = $7, project_link = $8, 
+                    github_link = $9, updated_at = NOW()
+                WHERE id = $10
+                RETURNING *
+            `;
+            
+            const result = await client.query(updateQuery, [
+                project_name || currentApp.project_name,
+                industry || currentApp.industry,
+                stacksArray,
+                designer !== undefined ? designer : currentApp.designer,
+                company !== undefined ? company : currentApp.company,
+                status || currentApp.status,
+                JSON.stringify(currentMedia),
+                project_link !== undefined ? project_link : currentApp.project_link,
+                github_link !== undefined ? github_link : currentApp.github_link,
+                id
+            ]);
+
+            await client.query('COMMIT');
+
+            res.status(200).json({
+                success: true,
+                message: "Mobile app updated successfully",
+                data: result.rows[0]
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            
+            if (req.files) {
+                for (const file of req.files) {
+                    try {
+                        await deleteFromCloudinary(file.filename, file.mimetype.startsWith('video/') ? 'video' : 'image');
+                    } catch (cleanupError) {
+                        console.error('Error cleaning up file:', cleanupError);
+                    }
+                }
+            }
+            
+            throw error;
+        } finally {
+            client.release();
         }
-      }
-
-      const stacksArray = stacks
-        ? typeof stacks === "string"
-          ? stacks.split(",").map(s => s.trim()).filter(Boolean)
-          : stacks
-        : currentApp.stacks;
-
-      const updateQuery = `
-        UPDATE mobile_apps 
-        SET project_name = $1, industry = $2, stacks = $3, designer = $4, 
-            company = $5, status = $6, media = $7, project_link = $8, github_link = $9, updated_at = NOW()
-        WHERE id = $10 RETURNING *
-      `;
-
-      const result = await client.query(updateQuery, [
-        project_name || currentApp.project_name,
-        industry || currentApp.industry,
-        stacksArray,
-        designer !== undefined ? designer : currentApp.designer,
-        company !== undefined ? company : currentApp.company,
-        status || currentApp.status,
-        JSON.stringify(currentMedia),
-        project_link !== undefined ? project_link : currentApp.project_link,
-        github_link !== undefined ? github_link : currentApp.github_link,
-        id,
-      ]);
-
-      await client.query("COMMIT");
-      
-      const videoStats = currentMedia
-        .filter(media => media.compression_ratio)
-        .map(media => ({
-          name: media.original_name,
-          original_size: `${(media.original_size / 1024 / 1024).toFixed(2)}MB`,
-          compressed_size: `${(media.file_size / 1024 / 1024).toFixed(2)}MB`,
-          compression_ratio: `${media.compression_ratio}%`
-        }));
-
-      res.status(200).json({ 
-        success: true, 
-        message: "Mobile app updated successfully", 
-        data: result.rows[0],
-        compression_stats: videoStats.length > 0 ? videoStats : null
-      });
-    } catch (error) {
-      await client.query("ROLLBACK");
-      if (req.files) {
-        for (const file of req.files) {
-          try {
-            await deleteFromCloudinary(file.filename, file.mimetype.startsWith("video/") ? "video" : "image");
-          } catch (cleanupError) {
-            console.error("Error cleaning up file:", cleanupError);
-          }
-        }
-      }
-      throw error;
-    } finally {
-      client.release();
-    }
-  })
+    })
 );
 
 // DELETE: Delete mobile app and all associated media
@@ -445,9 +363,9 @@ router.get(
                     array_length(stacks, 1) as stacks_count,
                     jsonb_array_length(COALESCE(media, '[]'::jsonb)) as media_count,
                     CASE 
-                        WHEN jsonb_array_length(COALESCE(media, '[]'::jsonb)) > 0 
-                        THEN (media->0->>'file_url')::text 
-                        ELSE NULL 
+                        WHEN jsonb_array_length(COALESCE(media, '[]'::jsonb)) > 0
+                        THEN (media->0->>'file_url')::text
+                        ELSE NULL
                     END as featured_image
                 FROM mobile_apps
                 ORDER BY created_at DESC
