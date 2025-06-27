@@ -59,8 +59,7 @@ router.post(
 router.post(
     "/auth/login",
     catchAsyncErrors(async (req, res, next) => {
-        console.log('Login attempt:', req.body);
-        
+
         const { email, password } = req.body;
 
         if (!email || !password) {

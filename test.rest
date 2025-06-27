@@ -142,6 +142,7 @@ Authorization: Bearer YOUR_ADMIN_TOKEN
     "industry": "Food & Beverage",
     "stacks": "Flutter, Firebase, Google Maps API",
     "designer": "Jane Smith",
+    "designerLink": "https://janesmithdesigns.com",
     "status": "Completed",
     "company": "SpaceX",
     "project_link": "https://foodapp.com",
