@@ -134,6 +134,11 @@ router.post(
             // Clean up uploaded files if database insertion fails
             if (req.files) {
                 for (const file of req.files) {
+                    console.log(`Cleaning up file: ${file.filename}`);
+                    console.log(`File type: ${file.mimetype}`);
+                    console.log(`File path: ${file.path}`);
+                    console.log(`File size: ${file.size} bytes`);
+                    console.log(`Original name: ${file.originalname}`);
                     try {
                         await deleteFromCloudinary(file.filename, file.mimetype.startsWith('video/') ? 'video' : 'image');
                     } catch (cleanupError) {

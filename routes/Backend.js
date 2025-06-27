@@ -11,7 +11,7 @@ const { deleteFromCloudinary, extractPublicId } = require("../utils/cloudinaryHe
 router.post(
     "/backend/add-data",
     isAuthenticatedAdmin,
-    uploadMixed.array('images', 10), // Allow up to 10 images
+    uploadMixed.array('images', 10),
     catchAsyncErrors(async (req, res, next) => {
         const { projects } = req.body;
         let parsedProjects;
