@@ -18,6 +18,7 @@ router.post(
             industry, 
             stacks, 
             designer, 
+            designerLink,
             company,
             status, 
             project_link, 
@@ -97,10 +98,10 @@ router.post(
             // Insert mobile app data
             const insertQuery = `
                 INSERT INTO mobile_apps (
-                    project_name, industry, stacks, designer, company, status, 
+                    project_name, industry, stacks, designer, designer_link, company, status, 
                     media, project_link, github_link, created_by_email, 
                     created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()) 
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()) 
                 RETURNING *
             `;
             
@@ -109,6 +110,7 @@ router.post(
                 industry,
                 stacksArray,
                 designer || null,
+                designerLink || null,
                 company || null,
                 projectStatus,
                 JSON.stringify(mediaArray),
@@ -159,6 +161,7 @@ router.put(
             industry, 
             stacks, 
             designer, 
+            designerLink,
             company,
             status, 
             project_link, 
@@ -257,9 +260,9 @@ router.put(
             const updateQuery = `
                 UPDATE mobile_apps 
                 SET project_name = $1, industry = $2, stacks = $3, designer = $4, 
-                    company = $5, status = $6, media = $7, project_link = $8, 
-                    github_link = $9, updated_at = NOW()
-                WHERE id = $10
+                    designer_link = $5, company = $6, status = $7, media = $8, project_link = $9, 
+                    github_link = $10, updated_at = NOW()
+                WHERE id = $11
                 RETURNING *
             `;
             
@@ -268,6 +271,7 @@ router.put(
                 industry || currentApp.industry,
                 stacksArray,
                 designer !== undefined ? designer : currentApp.designer,
+                designerLink !== undefined ? designerLink : currentApp.designer_link,
                 company !== undefined ? company : currentApp.company,
                 status || currentApp.status,
                 JSON.stringify(currentMedia),
@@ -427,6 +431,7 @@ router.get(
                 COUNT(CASE WHEN LOWER(status) LIKE '%cancelled%' THEN 1 END) as cancelled_apps,
                 COUNT(DISTINCT industry) as unique_industries,
                 COUNT(DISTINCT company) as unique_companies,
+                COUNT(DISTINCT designer) as unique_designers,
                 AVG(jsonb_array_length(COALESCE(media, '[]'::jsonb))) as avg_media_per_app,
                 SUM(jsonb_array_length(COALESCE(media, '[]'::jsonb))) as total_media_files
             FROM mobile_apps
@@ -454,6 +459,19 @@ router.get(
             LIMIT 10
         `;
 
+        const designerStatsQuery = `
+            SELECT 
+                designer,
+                designer_link,
+                COUNT(*) as projects_count,
+                ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM mobile_apps WHERE designer IS NOT NULL)), 2) as percentage
+            FROM mobile_apps
+            WHERE designer IS NOT NULL
+            GROUP BY designer, designer_link
+            ORDER BY projects_count DESC
+            LIMIT 10
+        `;
+
         const stacksStatsQuery = `
             SELECT 
                 unnest(stacks) as stack,
@@ -471,16 +489,19 @@ router.get(
                 status,
                 industry,
                 company,
+                designer,
+                designer_link,
                 jsonb_array_length(COALESCE(media, '[]'::jsonb)) as media_count
             FROM mobile_apps
             ORDER BY created_at DESC
             LIMIT 5
         `;
 
-        const [statsResult, industryResult, companyResult, stacksResult, recentResult] = await Promise.all([
+        const [statsResult, industryResult, companyResult, designerResult, stacksResult, recentResult] = await Promise.all([
             pool.query(statsQuery),
             pool.query(industryStatsQuery),
             pool.query(companyStatsQuery),
+            pool.query(designerStatsQuery),
             pool.query(stacksStatsQuery),
             pool.query(recentAppsQuery)
         ]);
@@ -491,6 +512,7 @@ router.get(
                 overview: statsResult.rows[0],
                 industry_breakdown: industryResult.rows,
                 company_breakdown: companyResult.rows,
+                designer_breakdown: designerResult.rows,
                 popular_stacks: stacksResult.rows,
                 recent_apps: recentResult.rows
             }

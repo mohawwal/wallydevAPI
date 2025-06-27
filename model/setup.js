@@ -50,6 +50,7 @@ const createMobileAppsTable = async () => {
         industry VARCHAR(100) NOT NULL,
         stacks TEXT[] NOT NULL,
         designer VARCHAR(255),
+        designer_link TEXT,
         company VARCHAR(255),
         status VARCHAR(100) DEFAULT 'in_progress',
         media JSONB DEFAULT '[]'::jsonb,
@@ -90,12 +91,41 @@ const createBackendProjectsTable = async () => {
   }
 };
 
+// Migration function to add designer_link column to existing mobile_apps table
+const addDesignerLinkColumn = async () => {
+  try {
+    // Check if designer_link column already exists
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'mobile_apps' 
+      AND column_name = 'designer_link'
+    `);
+
+    if (columnCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE mobile_apps 
+        ADD COLUMN designer_link TEXT
+      `);
+      console.log("Designer link column added to mobile_apps table");
+    } else {
+      console.log("Designer link column already exists in mobile_apps table");
+    }
+  } catch (err) {
+    console.error("Error adding designer_link column:", err);
+  }
+};
+
 const setupDatabase = async () => {
   try {
     await createUsersTable();
     await createFrontendProjectsTable();
     await createMobileAppsTable();
     await createBackendProjectsTable();
+    
+    // Run migration to add designer_link column if it doesn't exist
+    await addDesignerLinkColumn();
+    
     console.log("All database setup tasks completed successfully");
   } catch (error) {
     console.error("Database setup failed", error);
