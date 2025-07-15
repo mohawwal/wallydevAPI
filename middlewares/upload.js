@@ -1,6 +1,6 @@
 const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const cloudinary = require("../utils/cloudinary");
+const cloudinary = require("../config/cloudinary");
 
 const uploadMixed = multer({
   storage: new CloudinaryStorage({
@@ -12,7 +12,7 @@ const uploadMixed = multer({
     },
   }),
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB
+    fileSize: 100 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {

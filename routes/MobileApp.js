@@ -4,7 +4,7 @@ const pool = require("../model/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const { isAuthenticatedAdmin } = require("../middlewares/auth");
-const { uploadMixed } = require("../middlewares/upload");
+const uploadMixed = require("../middlewares/upload");
 const { deleteFromCloudinary, generateVideoThumbnail } = require("../utils/cloudinaryHelpers");
 
 // POST: Add mobile app with file uploads
