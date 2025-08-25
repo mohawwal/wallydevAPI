@@ -9,7 +9,7 @@ const errorHandler = require('./middlewares/errors');
 const allowedOrigins = [
     'https://wally-dev-admin.vercel.app',
     'https://awwal-dev.vercel.app',
-    'http://localhost:3000'
+    'http://localhost:5173'
 ];
 
 app.use(cors({
