@@ -22,9 +22,6 @@ const sendToken = (user, statusCode, res) => {
     path: '/'
   };
 
-  // console.log('Setting cookie with options:', options);
-  // console.log('Token being set:', token ? 'Present' : 'Missing');
-
   res.cookie("token", token, options)
 
   res.status(statusCode)
